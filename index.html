@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PHONOSCOPE</title>
+<meta name="description" content="Retro-Audio-Visualizer">
+<meta name="theme-color" content="#141418">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PHONOSCOPE">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/VT323-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="fr">
+  <div class="titlebar">
+    <span class="title">PHONOSCOPE</span>
+    <span class="grip"></span>
+    <button id="btnHide" class="rb small" aria-label="Bedienfeld ausblenden">_</button>
+  </div>
+
+  <div class="in lcd">
+    <span id="lcd">BALKEN · TÜRKIS</span>
+    <span id="clk">00:00</span>
+  </div>
+
+  <div id="screen" class="in screen">
+    <canvas id="cv"></canvas>
+    <div id="start" class="start">
+      <div class="start-main">TIPPEN ZUM STARTEN</div>
+      <div id="startMsg" class="start-sub">AUDIOEINGANG WIRD DANACH FREIGEGEBEN</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span id="src">KEIN EINGANG</span>
+    <span id="rate">--.- KHZ</span>
+  </div>
+
+  <div id="panel" class="fr panel">
+    <div class="lb">MODUS</div>
+    <div id="modes" class="grid">
+      <button class="rb" data-m="0">BALKEN</button>
+      <button class="rb" data-m="1" disabled>WELLE</button>
+      <button class="rb" data-m="2" disabled>PUNKTE</button>
+      <button class="rb" data-m="3" disabled>VU ANALOG</button>
+      <button class="rb" data-m="4" disabled>VU LED</button>
+      <button class="rb" data-m="5" disabled>UHR</button>
+      <button class="rb" data-m="6" disabled>KOMBI</button>
+      <button class="rb" id="btnSet">EINST.</button>
+    </div>
+    <div class="lb">FARBE</div>
+    <div id="themes" class="sws">
+      <button class="sw" data-t="0" aria-label="Türkis" style="background:#3ff0d8"></button>
+      <button class="sw" data-t="1" aria-label="Bernstein" style="background:#ffb13b"></button>
+      <button class="sw" data-t="2" aria-label="Grün-Gelb-Rot" style="background:linear-gradient(90deg,#3bff6a 60%,#ffd23b 60% 82%,#ff3b30 82%)"></button>
+      <button class="sw" data-t="3" aria-label="Bunt" style="background:linear-gradient(90deg,hsl(0,95%,60%),hsl(60,95%,60%),hsl(120,95%,60%),hsl(180,95%,60%),hsl(240,95%,60%),hsl(280,95%,60%))"></button>
+      <button class="sw" data-t="4" aria-label="Glut" style="background:linear-gradient(0deg,#ff7a1a,#ff2e88)"></button>
+      <button class="sw" data-t="5" aria-label="Eisweiß" style="background:#e6f2ff"></button>
+      <label class="sw" id="swCustom" data-t="6" aria-label="Eigene Farbe"><input type="color" id="cp" value="#7cff4f"></label>
+    </div>
+  </div>
+
+  <div id="settings" class="fr dialog" hidden>
+    <div class="titlebar">
+      <span class="title">EINSTELLUNGEN</span>
+      <span class="grip"></span>
+    </div>
+    <div class="rows">
+      <label class="row"><span>EMPFINDLICHKEIT</span><input type="range" id="sSens" min="-20" max="20" step="1"><b id="vSens"></b></label>
+      <label class="row"><span>HELLIGKEIT</span><input type="range" id="sBright" min="20" max="100" step="5"><b id="vBright"></b></label>
+      <label class="row"><span>GLÄTTE</span><input type="range" id="sSmooth" min="0" max="100" step="5"><b id="vSmooth"></b></label>
+      <label class="row"><span>EINGANG</span><select id="sDev" class="rb"></select><b></b></label>
+      <div class="row"><span>NACHTMODUS</span><button id="sNight" class="rb">AUS</button><b></b></div>
+    </div>
+    <div class="dlg-foot"><button id="btnOk" class="rb">OK</button></div>
+  </div>
+
+  <div id="dim"></div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
