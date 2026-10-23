@@ -23,7 +23,7 @@ export function themeColor(theme, custom, b, k) {
     case 0: return '#3ff0d8';
     case 1: return '#ffb13b';
     case 2: return k > 0.84 ? '#ff3b30' : k > 0.64 ? '#ffd23b' : '#3bff6a';
-    case 3: return 'hsl(' + ((b * 47) % 360) + ',95%,60%)';
+    case 3: return 'hsl(' + Math.round(b / (NB - 1) * 280) + ',95%,60%)'; // Regenbogen: tief rot, hoch violett
     case 4: return mix('#ff7a1a', '#ff2e88', k);
     case 5: return '#e6f2ff';
     default: return custom;
