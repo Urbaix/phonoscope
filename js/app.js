@@ -1,6 +1,6 @@
 // PHONOSCOPE: Start, Render-Schleife, Wake Lock
 import { AudioInput, NB } from './audio.js';
-import { Renderer, MODE_NAMES, THEME_NAMES } from './render.js';
+import { Renderer, MODE_NAMES, THEME_NAMES, VU_FULL, ledPos } from './render.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { setupUI } from './ui.js';
 
@@ -10,6 +10,12 @@ const RANGE_DB = 50;
 const ATTACK_S = 0.012;
 const PEAK_HOLD_S = 1.0;
 const PEAK_FALL = 0.3; // Displayhöhe pro Sekunde
+// VU: 0 VU entspricht diesem RMS-Pegel (bei Empfindlichkeit 0)
+const VU_REF_DB = -20;
+// Zeigerträgheit nach VU-Norm: 99 % nach ca. 300 ms, ca. 1,5 % Überschwingen
+const VU_WN = 13;
+const VU_ZETA = 0.8;
+const VU_STEP = 0.002;
 
 const $ = id => document.getElementById(id);
 const settings = loadSettings();
@@ -17,6 +23,9 @@ const audio = new AudioInput();
 const renderer = new Renderer($('cv'));
 
 const lv = new Float32Array(NB), pk = new Float32Array(NB), pt = new Float32Array(NB);
+// Zeiger L/R: Ausschlag (1 = 0 VU) und Geschwindigkeit; LED-Peaks
+const vx = [0, 0], vv = [0, 0], led = [0, 0], ledPk = [0, 0], ledPt = [0, 0];
+const frame = { lv, pk, vu: [0, 0], led, ledPk, now: null };
 
 const app = {
   settings,
@@ -25,6 +34,7 @@ const app = {
   save() { saveSettings(settings); },
   applyLook() {
     renderer.setTheme(settings.theme, settings.custom);
+    renderer.setMode(settings.mode);
     const b = settings.bright / 100 * (settings.night ? 0.35 : 1);
     $('dim').style.opacity = (1 - b).toFixed(3);
     $('lcd').textContent = MODE_NAMES[settings.mode] + ' · ' + THEME_NAMES[settings.theme];
@@ -98,20 +108,41 @@ function process(dt) {
     else if (pt[b] > 0) pt[b] -= dt;
     else pk[b] = Math.max(0, pk[b] - PEAK_FALL * dt);
   }
+
+  // VU: Zeiger als gedämpftes Feder-Masse-System, angetrieben vom RMS-Pegel
+  const ref = Math.pow(10, (VU_REF_DB - settings.sens) / 20);
+  const input = [audio.level.l / ref, audio.level.r / ref];
+  for (let ch = 0; ch < 2; ch++) {
+    for (let t = 0; t < dt; t += VU_STEP) {
+      const h = Math.min(VU_STEP, dt - t);
+      vv[ch] += (VU_WN * VU_WN * (input[ch] - vx[ch]) - 2 * VU_ZETA * VU_WN * vv[ch]) * h;
+      vx[ch] += vv[ch] * h;
+    }
+    // Anschlag rechts
+    if (vx[ch] > VU_FULL * 1.06) { vx[ch] = VU_FULL * 1.06; vv[ch] = Math.min(0, vv[ch]); }
+    if (vx[ch] < 0) { vx[ch] = 0; vv[ch] = Math.max(0, vv[ch]); }
+    frame.vu[ch] = vx[ch] / VU_FULL;
+    led[ch] = vx[ch] > 0 ? Math.min(1, Math.max(0, ledPos(20 * Math.log10(vx[ch])))) : 0;
+    if (led[ch] >= ledPk[ch]) { ledPk[ch] = led[ch]; ledPt[ch] = PEAK_HOLD_S; }
+    else if (ledPt[ch] > 0) ledPt[ch] -= dt;
+    else ledPk[ch] = Math.max(0, ledPk[ch] - PEAK_FALL * dt);
+  }
 }
 
 let last = performance.now(), footTimer = 0;
 function loop(now) {
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now;
+  frame.now = new Date();
   if (audio.update()) {
     process(dt);
-    renderer.drawBars(lv, pk);
+    frame.lv = lv;
     footTimer += dt;
     if (footTimer > 1) { footTimer = 0; updateFoot(); }
   } else {
-    renderer.drawBars(null, null);
+    frame.lv = null;
   }
+  renderer.draw(frame);
   requestAnimationFrame(loop);
 }
 

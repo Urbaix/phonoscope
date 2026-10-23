@@ -1,7 +1,10 @@
 // Bedienfeld, Farbwahl, Einstellungen
 import { listInputs } from './audio.js';
+import { MODE_NAMES } from './render.js';
 
 const HIDE_AFTER_MS = 5000;
+const SWIPE_MIN_PX = 60;
+const SWIPE_MAX_MS = 800;
 const $ = id => document.getElementById(id);
 
 export function setupUI(app) {
@@ -24,18 +27,31 @@ export function setupUI(app) {
   }
   function changed() { app.save(); app.applyLook(); mark(); }
 
-  // Tippen irgendwo: Bedienfeld zurückholen, ggf. Audio starten
+  // Tippen: Bedienfeld zurückholen. Wischen links/rechts: Modus wechseln
+  let sx = null, sy = 0, st = 0;
   $('app').addEventListener('pointerdown', e => {
     if (panel.contains(e.target) || dlg.contains(e.target)) { armHide(); return; }
     if (e.target.closest('#btnHide')) return;
+    sx = e.clientX; sy = e.clientY; st = performance.now();
+  });
+  $('app').addEventListener('pointerup', e => {
+    if (sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = null;
+    if (dlg.hidden && Math.abs(dx) > SWIPE_MIN_PX && Math.abs(dx) > 1.5 * Math.abs(dy) && performance.now() - st < SWIPE_MAX_MS) {
+      s.mode = (s.mode + (dx < 0 ? 1 : -1) + MODE_NAMES.length) % MODE_NAMES.length;
+      changed();
+      return;
+    }
     showPanel();
   });
+  $('app').addEventListener('pointercancel', () => { sx = null; });
   $('start').addEventListener('click', () => { app.startAudio(); });
   $('btnHide').addEventListener('click', hidePanel);
 
   $('modes').addEventListener('click', e => {
     const b = e.target.closest('[data-m]');
-    if (!b || b.disabled) return;
+    if (!b) return;
     s.mode = +b.dataset.m;
     changed();
   });

@@ -118,6 +118,8 @@ button, select, input { font-family: inherit; }
   min-height: 0;
   background: #050705;
 }
+/* eigene Wischgesten statt Scrollen/Zoomen */
+.titlebar, .lcd, .screen, .foot { touch-action: none; }
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 .start {
