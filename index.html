@@ -20,6 +20,7 @@
 <div id="app" class="fr">
   <div class="titlebar">
     <span class="title">PHONOSCOPE</span>
+    <span class="sub">31-BAND STEREO-ANALYSATOR</span>
     <span class="grip"></span>
     <button id="btnHide" class="rb small" aria-label="Bedienfeld ausblenden">_</button>
   </div>
@@ -48,10 +49,13 @@
       <button class="rb" data-m="0">BALKEN</button>
       <button class="rb" data-m="1">WELLE</button>
       <button class="rb" data-m="2">PUNKTE</button>
+      <button class="rb" data-m="9">WASSERFALL</button>
+      <button class="rb" data-m="7">OSZILLOSKOP</button>
+      <button class="rb" data-m="8">GONIOMETER</button>
       <button class="rb" data-m="3">VU ANALOG</button>
       <button class="rb" data-m="4">VU LED</button>
-      <button class="rb" data-m="5">UHR</button>
       <button class="rb" data-m="6">KOMBI</button>
+      <button class="rb" data-m="5">UHR</button>
       <button class="rb" id="btnSet">EINST.</button>
     </div>
     <div class="lb">FARBE</div>
@@ -72,7 +76,9 @@
       <span class="grip"></span>
     </div>
     <div class="rows">
-      <label class="row"><span>EMPFINDLICHKEIT</span><input type="range" id="sSens" min="-20" max="20" step="1"><b id="vSens"></b></label>
+      <label class="row"><span>SKIN</span><select id="sSkin" class="rb"></select><b></b></label>
+      <div class="row"><span>AUTO-PEGEL</span><button id="sAuto" class="rb">EIN</button><b id="vAuto"></b></div>
+      <label class="row"><span>EMPFINDLICHKEIT</span><input type="range" id="sSens" min="-40" max="40" step="1"><b id="vSens"></b></label>
       <label class="row"><span>HELLIGKEIT</span><input type="range" id="sBright" min="20" max="100" step="5"><b id="vBright"></b></label>
       <label class="row"><span>GLÄTTE</span><input type="range" id="sSmooth" min="0" max="100" step="5"><b id="vSmooth"></b></label>
       <label class="row"><span>EINGANG</span><select id="sDev" class="rb"></select><b></b></label>

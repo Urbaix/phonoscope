@@ -5,7 +5,9 @@ export const DEFAULTS = {
   mode: 0,          // 0 BALKEN
   theme: 0,         // 0 TÜRKIS
   custom: '#7cff4f',
-  sens: 0,          // Empfindlichkeit in dB, -20 .. +20
+  sens: 0,          // Empfindlichkeit in dB, -40 .. +40 (zusätzlich zum Auto-Pegel)
+  auto: true,       // Auto-Pegel
+  skin: 0,          // 0 90ER PC, 1 TECHNICS SILBER, 2 HOLZ 70ER
   bright: 100,      // Helligkeit in %, 20 .. 100
   smooth: 40,       // Glätte 0 .. 100
   device: '',       // deviceId der Eingangsquelle, '' = Standard

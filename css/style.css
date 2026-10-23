@@ -6,18 +6,30 @@
   font-display: block;
 }
 
+/* Skin 90ER PC (Standard) */
 :root {
-  --case: #2c2c34;
+  --body-bg: #141418;
+  --case-bg: #2c2c34;
   --hi: #6e6e7c;
   --lo: #121216;
-  --key: #3b3b46;
+  --title-bg: #1b1b22;
+  --title-text: #cfd8c4;
+  --grip: #4a4a56;
+  --key-bg: #3b3b46;
+  --key-on-bg: #30303a;
   --key-hi: #7a7a88;
   --key-lo: #15151a;
   --key-text: #cfd8c4;
-  --green: #7dff6a;
+  --key-on-text: #7dff6a;
+  --key-off-text: #5d606a;
   --lcd: #5cff4f;
   --lcd-bg: #0a110a;
+  --lcd-glow: rgba(92, 255, 79, 0.45);
   --label: #8d94a0;
+  --foot: #6c7380;
+  --screen-bg: #050705;
+  --track: #0a0a0d;
+  --side: 0px;
 }
 
 * { box-sizing: border-box; }
@@ -25,12 +37,12 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: #141418;
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 body {
+  background: var(--body-bg);
   font-family: 'VT323', ui-monospace, monospace;
   color: var(--key-text);
   -webkit-user-select: none;
@@ -45,7 +57,7 @@ button, select, input { font-family: inherit; }
 
 /* Gehäuse mit Fase: hell oben/links, dunkel unten/rechts */
 .fr {
-  background: var(--case);
+  background: var(--case-bg);
   border: 2px solid;
   border-color: var(--hi) var(--lo) var(--lo) var(--hi);
   padding: 6px;
@@ -59,9 +71,9 @@ button, select, input { font-family: inherit; }
 #app {
   position: fixed;
   top: env(safe-area-inset-top);
-  right: env(safe-area-inset-right);
+  right: calc(env(safe-area-inset-right) + var(--side));
   bottom: env(safe-area-inset-bottom);
-  left: env(safe-area-inset-left);
+  left: calc(env(safe-area-inset-left) + var(--side));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -70,34 +82,37 @@ button, select, input { font-family: inherit; }
 .titlebar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #1b1b22;
+  gap: 8px;
+  background: var(--title-bg);
   padding: 2px 6px;
   min-height: 28px;
 }
-.title { font-size: 20px; letter-spacing: 2px; }
-.grip { flex: 1; height: 6px; border-top: 1px solid #4a4a56; border-bottom: 1px solid #4a4a56; }
+.title { font-size: 20px; letter-spacing: 2px; color: var(--title-text); }
+.sub { display: none; font-size: 16px; letter-spacing: 2px; color: var(--label); }
+.grip { flex: 1; height: 6px; border-top: 1px solid var(--grip); border-bottom: 1px solid var(--grip); }
 
 /* Tasten */
 .rb {
+  position: relative;
   font-size: 22px;
   color: var(--key-text);
-  background: var(--key);
+  background: var(--key-bg);
   border: 2px solid;
   border-color: var(--key-hi) var(--key-lo) var(--key-lo) var(--key-hi);
   border-radius: 0;
   padding: 4px 6px;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
   -webkit-appearance: none;
   appearance: none;
 }
 .rb:active, .rb.on {
   border-color: var(--key-lo) var(--key-hi) var(--key-hi) var(--key-lo);
-  color: var(--green);
-  background: #30303a;
+  color: var(--key-on-text);
+  background: var(--key-on-bg);
 }
-.rb:disabled { color: #5d606a; cursor: default; }
-.rb:disabled:active { border-color: var(--key-hi) var(--key-lo) var(--key-lo) var(--key-hi); background: var(--key); }
+.rb:disabled { color: var(--key-off-text); cursor: default; }
 .rb.small { font-size: 16px; padding: 0 8px; line-height: 20px; }
 
 .lcd {
@@ -107,7 +122,7 @@ button, select, input { font-family: inherit; }
   background: var(--lcd-bg);
   padding: 2px 10px;
   color: var(--lcd);
-  text-shadow: 0 0 6px rgba(92, 255, 79, 0.45);
+  text-shadow: 0 0 6px var(--lcd-glow);
 }
 #lcd { font-size: 24px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
 #clk { font-size: 28px; }
@@ -116,7 +131,7 @@ button, select, input { font-family: inherit; }
   position: relative;
   flex: 1;
   min-height: 0;
-  background: #050705;
+  background: var(--screen-bg);
 }
 /* eigene Wischgesten statt Scrollen/Zoomen */
 .titlebar, .lcd, .screen, .foot { touch-action: none; }
@@ -145,7 +160,7 @@ button, select, input { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   font-size: 18px;
-  color: #6c7380;
+  color: var(--foot);
   padding: 0 2px;
 }
 
@@ -162,8 +177,9 @@ button, select, input { font-family: inherit; }
 .panel.off { transform: translateY(16px); opacity: 0; pointer-events: none; }
 
 .lb { font-size: 18px; color: var(--label); letter-spacing: 1px; margin: 6px 0 4px; }
-.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.grid .rb { padding: 8px 6px; }
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.grid .rb { padding: 8px 4px; }
+#btnSet { grid-column: 6; }
 .sws { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 
 /* Farbfelder */
@@ -182,7 +198,7 @@ button, select, input { font-family: inherit; }
 }
 .sw.on {
   border-color: var(--key-lo) var(--key-hi) var(--key-hi) var(--key-lo);
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--key-on-text);
   outline-offset: -7px;
 }
 #swCustom { background: #7cff4f; }
@@ -202,17 +218,20 @@ button, select, input { font-family: inherit; }
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(620px, calc(100% - 24px));
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
   z-index: 5;
 }
 .dialog[hidden] { display: none; }
-.rows { padding: 10px 6px 4px; display: flex; flex-direction: column; gap: 14px; }
-.row { display: grid; grid-template-columns: 170px 1fr 64px; align-items: center; gap: 12px; font-size: 22px; }
+.rows { padding: 10px 6px 4px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; touch-action: pan-y; }
+.row { display: grid; grid-template-columns: 170px 1fr 84px; align-items: center; gap: 12px; font-size: 22px; }
 .row span { color: var(--label); }
 .row b { font-weight: normal; color: var(--lcd); text-align: right; font-size: 22px; }
 .row select { width: 100%; font-size: 20px; text-align: left; }
-.row #sNight { justify-self: start; min-width: 90px; }
+.row #sNight, .row #sAuto { justify-self: start; min-width: 90px; }
 .dlg-foot { display: flex; justify-content: flex-end; padding: 10px 6px 4px; }
 .dlg-foot .rb { min-width: 110px; }
 
@@ -227,7 +246,7 @@ input[type=range] {
 }
 input[type=range]::-webkit-slider-runnable-track {
   height: 10px;
-  background: #0a0a0d;
+  background: var(--track);
   border: 2px solid;
   border-color: var(--lo) var(--hi) var(--hi) var(--lo);
 }
@@ -236,21 +255,21 @@ input[type=range]::-webkit-slider-thumb {
   width: 22px;
   height: 32px;
   margin-top: -13px;
-  background: var(--key);
+  background: var(--key-bg);
   border: 2px solid;
   border-color: var(--key-hi) var(--key-lo) var(--key-lo) var(--key-hi);
   border-radius: 0;
 }
 input[type=range]::-moz-range-track {
   height: 6px;
-  background: #0a0a0d;
+  background: var(--track);
   border: 2px solid;
   border-color: var(--lo) var(--hi) var(--hi) var(--lo);
 }
 input[type=range]::-moz-range-thumb {
   width: 18px;
   height: 28px;
-  background: var(--key);
+  background: var(--key-bg);
   border: 2px solid;
   border-color: var(--key-hi) var(--key-lo) var(--key-lo) var(--key-hi);
   border-radius: 0;
@@ -266,8 +285,119 @@ input[type=range]::-moz-range-thumb {
   z-index: 10;
 }
 
+/* ---------- Skin TECHNICS SILBER: gebürstetes Alu, schwarzes Display, Receiver-Tasten ---------- */
+.skin-alu {
+  --brushed: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0 1px, rgba(0, 0, 0, 0.035) 1px 2px, rgba(255, 255, 255, 0.02) 2px 4px);
+  --body-bg: #0c0c0d;
+  --case-bg: var(--brushed), linear-gradient(180deg, #d9dbdf 0%, #c3c6cb 45%, #aeb1b7 100%);
+  --hi: #f4f5f7;
+  --lo: #6b6e74;
+  --title-bg: transparent;
+  --title-text: #2a2c31;
+  --grip: #8d9096;
+  --key-bg: linear-gradient(180deg, #f6f6f8 0%, #d6d8dc 55%, #c2c4c9 100%);
+  --key-on-bg: linear-gradient(180deg, #c4c6cb 0%, #d9dbdf 100%);
+  --key-hi: #fdfdfe;
+  --key-lo: #5d6066;
+  --key-text: #26282c;
+  --key-on-text: #111214;
+  --key-off-text: #8a8d93;
+  --lcd: #6ff3ff;
+  --lcd-bg: #000;
+  --lcd-glow: rgba(111, 243, 255, 0.5);
+  --label: #3c3f45;
+  --foot: #4a4d53;
+  --screen-bg: #000;
+  --track: #1c1d20;
+}
+.skin-alu .title { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8); letter-spacing: 4px; }
+.skin-alu .sub { display: inline; color: #4a4d53; }
+.skin-alu .grip { border-top-color: #8d9096; border-bottom-color: #f4f5f7; height: 4px; }
+.skin-alu .in { border-color: #55585e #eef0f2 #eef0f2 #55585e; }
+.skin-alu .lcd, .skin-alu .screen { box-shadow: inset 0 0 0 1px #000, inset 0 6px 18px rgba(255, 255, 255, 0.04); }
+.skin-alu .rb {
+  border: 1px solid #6e7177;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 #7d8086, 0 3px 4px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.skin-alu .rb:active, .skin-alu .rb.on {
+  border: 1px solid #5d6066;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  transform: translateY(1px);
+}
+/* Receiver-Taste: Kontrollleuchte oberhalb der Beschriftung */
+.skin-alu .grid .rb, .skin-alu #sAuto, .skin-alu #sNight { padding-top: 14px; }
+.skin-alu .grid .rb::before, .skin-alu #sAuto::before, .skin-alu #sNight::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 18px;
+  height: 4px;
+  margin-left: -9px;
+  border-radius: 1px;
+  background: #4a3a32;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.skin-alu .grid .rb.on::before, .skin-alu #sAuto.on::before, .skin-alu #sNight.on::before {
+  background: #ff6a2a;
+  box-shadow: 0 0 6px 1px rgba(255, 106, 42, 0.8);
+}
+.skin-alu #btnSet::before { display: none; }
+.skin-alu .sw { border-radius: 2px; border: 1px solid #5d6066; }
+.skin-alu .sw.on { outline-color: #ff6a2a; }
+.skin-alu .panel, .skin-alu .dialog { box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.45); }
+.skin-alu .row b { color: #0e6f7a; }
+.skin-alu input[type=range]::-webkit-slider-thumb { border-radius: 2px; }
+
+/* ---------- Skin HOLZ 70ER: Walnuss-Seitenteile, Bernstein-Beleuchtung ---------- */
+.skin-wood {
+  --walnut:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 7px, rgba(255, 214, 170, 0.05) 7px 9px, transparent 9px 15px, rgba(0, 0, 0, 0.1) 15px 16px, transparent 16px 23px),
+    repeating-linear-gradient(90deg, transparent 0 37px, rgba(0, 0, 0, 0.22) 37px 39px, transparent 39px 61px),
+    linear-gradient(90deg, #3a2113 0%, #5b3520 18%, #4a2a17 35%, #613a22 52%, #452716 70%, #5a341e 86%, #3a2113 100%);
+  --body-bg: var(--walnut);
+  --case-bg: linear-gradient(180deg, #2a221c 0%, #1f1914 100%);
+  --hi: #5a4a3c;
+  --lo: #0b0806;
+  --title-bg: #17120e;
+  --title-text: #e9dcc0;
+  --grip: #4a3c30;
+  --key-bg: linear-gradient(180deg, #3a2f26 0%, #2a221b 100%);
+  --key-on-bg: #1d1712;
+  --key-hi: #6a5846;
+  --key-lo: #0a0705;
+  --key-text: #e9dcc0;
+  --key-on-text: #ffb13b;
+  --key-off-text: #6f604f;
+  --lcd: #ffb13b;
+  --lcd-bg: #140b02;
+  --lcd-glow: rgba(255, 177, 59, 0.55);
+  --label: #b39a78;
+  --foot: #8a7660;
+  --screen-bg: #070402;
+  --track: #0d0906;
+  --side: 44px;
+}
+/* Seitenteile mit Schattenkante zum Gehäuse */
+.skin-wood #app { box-shadow: -6px 0 10px rgba(0, 0, 0, 0.55), 6px 0 10px rgba(0, 0, 0, 0.55); }
+.skin-wood .sub { display: inline; color: #b39a78; }
+.skin-wood .title { letter-spacing: 4px; }
+.skin-wood .rb { border-radius: 2px; }
+.skin-wood .rb.on, .skin-wood .rb:active { text-shadow: 0 0 8px rgba(255, 177, 59, 0.75); }
+.skin-wood .sw.on { outline-color: #ffb13b; }
+.skin-wood .start { color: #ffb13b; text-shadow: 0 0 10px rgba(255, 177, 59, 0.7); background: rgba(7, 4, 2, 0.72); }
+
 @media (max-height: 560px) {
-  .grid .rb { padding: 3px 6px; font-size: 19px; }
+  .grid .rb { padding: 3px 4px; font-size: 19px; }
+  .skin-alu .grid .rb { padding-top: 11px; }
+  .skin-alu .grid .rb::before { top: 3px; }
   .sw { height: 30px; }
   .lb { margin: 3px 0 2px; font-size: 16px; }
+  .rows { gap: 6px; padding-top: 6px; }
+  .row { font-size: 20px; }
+  input[type=range] { height: 28px; }
+  :root { --side: 0px; }
+  .skin-wood { --side: 28px; }
 }

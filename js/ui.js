@@ -1,6 +1,6 @@
 // Bedienfeld, Farbwahl, Einstellungen
 import { listInputs } from './audio.js';
-import { MODE_NAMES } from './render.js';
+import { MODE_ORDER, SKIN_NAMES } from './render.js';
 
 const HIDE_AFTER_MS = 5000;
 const SWIPE_MIN_PX = 60;
@@ -39,7 +39,8 @@ export function setupUI(app) {
     const dx = e.clientX - sx, dy = e.clientY - sy;
     sx = null;
     if (dlg.hidden && Math.abs(dx) > SWIPE_MIN_PX && Math.abs(dx) > 1.5 * Math.abs(dy) && performance.now() - st < SWIPE_MAX_MS) {
-      s.mode = (s.mode + (dx < 0 ? 1 : -1) + MODE_NAMES.length) % MODE_NAMES.length;
+      const n = MODE_ORDER.length, i = Math.max(0, MODE_ORDER.indexOf(s.mode));
+      s.mode = MODE_ORDER[(i + (dx < 0 ? 1 : -1) + n) % n];
       changed();
       return;
     }
@@ -80,6 +81,33 @@ export function setupUI(app) {
     });
   }
 
+  const skin = $('sSkin');
+  SKIN_NAMES.forEach((name, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = name;
+    skin.appendChild(o);
+  });
+  skin.value = s.skin;
+  skin.addEventListener('change', () => {
+    s.skin = +skin.value;
+    // Holz 70er: Bernstein-Beleuchtung, solange noch die Standardfarbe gewählt ist
+    if (s.skin === 2 && s.theme === 0) s.theme = 1;
+    changed();
+  });
+
+  // Auto-Pegel: Taste EIN/AUS, daneben die aktuelle Anhebung
+  const auto = $('sAuto'), autoOut = $('vAuto');
+  let autoTimer = 0;
+  function markAuto() {
+    auto.textContent = s.auto ? 'EIN' : 'AUS';
+    auto.classList.toggle('on', s.auto);
+    const g = Math.round(app.autoGain);
+    autoOut.textContent = s.auto ? (g > 0 ? '+' : '') + g + ' DB' : '';
+  }
+  auto.addEventListener('click', () => { s.auto = !s.auto; changed(); markAuto(); });
+  markAuto();
+
   const night = $('sNight');
   function markNight() { night.textContent = s.night ? 'EIN' : 'AUS'; night.classList.toggle('on', s.night); }
   night.addEventListener('click', () => { s.night = !s.night; markNight(); changed(); });
@@ -114,8 +142,10 @@ export function setupUI(app) {
     fillDevices();
     dlg.hidden = false;
     clearTimeout(timer);
+    markAuto();
+    autoTimer = setInterval(markAuto, 500);
   });
-  $('btnOk').addEventListener('click', () => { dlg.hidden = true; armHide(); });
+  $('btnOk').addEventListener('click', () => { dlg.hidden = true; clearInterval(autoTimer); armHide(); });
 
   mark();
   showPanel();
