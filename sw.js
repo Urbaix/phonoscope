@@ -1,6 +1,6 @@
 // Service Worker: alles vorab cachen, offline aus dem Cache liefern,
 // im Hintergrund aktualisieren (neue Version beim nächsten Start)
-const CACHE = 'phonoscope-v2';
+const CACHE = 'phonoscope-v3';
 const FILES = [
   './',
   'index.html',

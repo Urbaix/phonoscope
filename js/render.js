@@ -1,9 +1,14 @@
 // Canvas-Zeichnung: Segmente mit Glow, Farbthemen, alle Modi
 import { NB } from './audio.js';
 
-export const MODE_NAMES = ['BALKEN', 'WELLE', 'PUNKTE', 'VU ANALOG', 'VU LED', 'UHR', 'KOMBI'];
+export const MODE_NAMES = ['BALKEN', 'WELLE', 'PUNKTE', 'VU ANALOG', 'VU LED', 'UHR', 'KOMBI',
+  'OSZILLOSKOP', 'GONIOMETER', 'WASSERFALL'];
 export const THEME_NAMES = ['TÜRKIS', 'BERNSTEIN', 'GRÜN-ROT', 'BUNT', 'GLUT', 'EISWEISS', 'EIGENE'];
-export const MODES = { BARS: 0, WAVE: 1, DOTS: 2, VU: 3, LED: 4, CLOCK: 5, COMBO: 6 };
+export const MODES = { BARS: 0, WAVE: 1, DOTS: 2, VU: 3, LED: 4, CLOCK: 5, COMBO: 6, OSC: 7, GONIO: 8, FALL: 9 };
+// Reihenfolge der Tasten im Bedienfeld, gilt auch fürs Wischen
+export const MODE_ORDER = [0, 1, 2, 9, 7, 8, 3, 4, 6, 5];
+export const SKIN_NAMES = ['90ER PC', 'TECHNICS SILBER', 'HOLZ 70ER'];
+export const SKINS = { PC: 0, ALU: 1, WOOD: 2 };
 
 const SEGS = 20;
 const LED_SEGS = 32;
@@ -17,15 +22,24 @@ const LABELS = { 2: '31', 5: '63', 8: '125', 11: '250', 14: '500', 17: '1K', 20:
 export const VU_FULL = Math.pow(10, 3 / 20);
 const VU_TICKS = [-20, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3];
 const VU_TEXT = [-20, -10, -7, -5, -3, 0, 1, 2, 3];
-const VU_ASPECT = 1.46;
-const VU_ARC = 0.62;
+const VU_ARC = 0.78;
+const VU_HEIGHT = 0.85; // Anteil der Displayhöhe
 const VU_INK = '#2b1d10';
 const VU_RED = '#c8281e';
+const NEEDLE = ['#151515', '#b01e18']; // L, R (Doppelzeiger im Kombi-Modus)
 // Skalenbeleuchtung je Thema (Bernstein-Töne für die bunten Themen)
 const FACES = ['#9fd8f5', '#ffc06a', '#ffd08a', '#ffd08a', '#ffa860', '#f3efe2'];
+const FACE_WOOD = '#ffb54a';
 // LED-Skala in dB
 const LED_MIN = -20, LED_MAX = 3;
 const LED_TEXT = [-20, -10, -7, -5, -3, 0, 3];
+// Nachleuchten (Zeitkonstante in s) für Oszilloskop und Goniometer
+const PERSIST_OSC = 0.12;
+const PERSIST_GONIO = 0.2;
+const OSC_WINDOW = 1024;
+// Wasserfall: Zeilen pro Sekunde und gespeicherte Zeilen
+const FALL_RATE = 40;
+const FALL_ROWS = 240;
 
 // 7-Segment-Ziffern: a b c d e f g
 const DIGITS = {
@@ -60,12 +74,18 @@ export class Renderer {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d');
     this.bg = document.createElement('canvas');   // unbeleuchtete Segmente, Skalen, Beschriftung
-    this.lit = document.createElement('canvas');  // beleuchtete Segmente
+    this.lit = document.createElement('canvas');  // beleuchtete Segmente bzw. Leuchtspur
     this.g1 = document.createElement('canvas');   // Glow, 1/4
     this.g2 = document.createElement('canvas');   // Glow, 1/16
+    this.fall = document.createElement('canvas'); // Wasserfall: eine Zeile pro Zeitschritt, ein Pixel pro Band
+    this.fall.width = NB;
+    this.fall.height = FALL_ROWS;
+    this.fallHead = 0;
+    this.fallAcc = 0;
     this.theme = 0;
     this.custom = '#7cff4f';
     this.mode = 0;
+    this.skin = 0;
     this.dirty = true;
   }
 
@@ -91,29 +111,34 @@ export class Renderer {
     if (mode !== this.mode) { this.mode = mode; this.dirty = true; }
   }
 
+  setSkin(skin) {
+    if (skin !== this.skin) { this.skin = skin; this.dirty = true; }
+  }
+
   color(b, k) { return themeColor(this.theme, this.custom, b, k); }
 
   // ---------- Layout ----------
 
   layout() {
-    const W = this.W, H = this.H, M = MODES;
+    const W = this.W, H = this.H, M = MODES, g = 12;
     this.spec = null;
     this.meters = null;
+    this.scope = null;
     if (this.mode === M.COMBO) {
-      // linke Spalte nur so breit wie die übereinanderliegenden Instrumente brauchen
-      const g = 12, mh = (H - 3 * g) / 2, lw = Math.round(Math.min(W * 0.4, mh * VU_ASPECT + 2 * g));
-      this.meters = [
-        this.fitMeter(g, g, lw - 2 * g, mh, 'L'),
-        this.fitMeter(g, 2 * g + mh, lw - 2 * g, mh, 'R')
-      ];
+      // ein Instrument mit Doppelzeiger L/R links, Spektrum rechts
+      const mh = H * VU_HEIGHT, mw = Math.min(W * 0.45, mh * 1.1);
+      this.meters = [this.fitMeter(g, 0, mw, H, mh, 'LR')];
+      const lw = mw + 2 * g;
       this.spec = this.specLayout({ x: lw, y: 0, w: W - lw, h: H });
     } else if (this.mode === M.VU) {
-      const g = 12, mw = (W - 3 * g) / 2;
-      this.meters = [this.fitMeter(g, g, mw, H - 2 * g, 'L'), this.fitMeter(2 * g + mw, g, mw, H - 2 * g, 'R')];
+      const mw = (W - 3 * g) / 2, mh = H * VU_HEIGHT;
+      this.meters = [this.fitMeter(g, 0, mw, H, mh, 'L'), this.fitMeter(2 * g + mw, 0, mw, H, mh, 'R')];
     } else if (this.mode === M.LED) {
       this.led = this.ledLayout();
     } else if (this.mode === M.CLOCK) {
       this.clk = this.clockLayout();
+    } else if (this.mode === M.OSC || this.mode === M.GONIO) {
+      this.scope = this.scopeLayout();
     } else {
       this.spec = this.specLayout({ x: 0, y: 0, w: W, h: H });
     }
@@ -142,10 +167,15 @@ export class Renderer {
     return [L.x + b * L.cw + (L.cw - L.bw) / 2, L.y + L.gh - (s + 1) * L.sh + (L.sh - L.sg) / 2, L.bw, L.sg];
   }
 
-  fitMeter(x, y, w, h, name) {
-    const mw = Math.min(w, h * VU_ASPECT), mh = mw / VU_ASPECT;
+  // Instrument mit Höhe mh, höchstens w breit, im Bereich (x, y, w, h) zentriert
+  fitMeter(x, y, w, h, mh, name) {
+    const mw = Math.min(w, mh * 1.5);
     const mx = x + (w - mw) / 2, my = y + (h - mh) / 2;
-    return { x: mx, y: my, w: mw, h: mh, name, px: mx + mw / 2, py: my + mh * 1.35, R: mh * 1.05, f: mh / 272 };
+    const f = Math.min(mw, mh) / 280, s = Math.sin(VU_ARC);
+    // Radius: Skala samt Beschriftung muss in Breite und Höhe passen
+    const py = my + mh * 0.8;
+    const R = Math.min((mw / 2 - 16 * f) / s - 22 * f, py - my - 40 * f);
+    return { x: mx, y: my, w: mw, h: mh, name, px: mx + mw / 2, py, R, f, rc: Math.max(12 * f, R * 0.11) };
   }
 
   ledLayout() {
@@ -178,6 +208,19 @@ export class Renderer {
     return { cells, colon, colors };
   }
 
+  scopeLayout() {
+    const W = this.W, H = this.H, pad = 16;
+    if (this.mode === MODES.OSC) {
+      const r = { x: pad, y: pad, w: W - 2 * pad, h: H - 2 * pad };
+      // Farbverlauf entlang der Zeitachse (Bunt, Glut), sonst einfarbig
+      const grad = this.ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
+      for (let i = 0; i <= 8; i++) grad.addColorStop(i / 8, this.color(Math.round(i / 8 * (NB - 1)), this.theme === 2 ? 0.3 : i / 8));
+      return { ...r, stroke: grad };
+    }
+    const size = Math.min(W, H) - 2 * pad;
+    return { x: (W - size) / 2, y: (H - size) / 2, w: size, h: size, stroke: this.color(Math.round(NB / 2), 0.3) };
+  }
+
   // ---------- Hintergrund (statisch) ----------
 
   buildBg() {
@@ -185,20 +228,32 @@ export class Renderer {
     const c = this.bg.getContext('2d');
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
-    if (this.spec) this.bgSpec(c, this.spec);
+    if (this.spec) {
+      if (this.mode !== MODES.FALL) this.bgSegs(c, this.spec);
+      this.bgLabels(c, this.spec);
+    }
     if (this.meters) this.meters.forEach(m => this.bgMeter(c, m));
     if (this.mode === MODES.LED) this.bgLed(c, this.led);
     if (this.mode === MODES.CLOCK) this.bgClock(c, this.clk);
+    if (this.mode === MODES.OSC) this.bgOsc(c, this.scope);
+    if (this.mode === MODES.GONIO) this.bgGonio(c, this.scope);
+    // Leuchtspur beim Moduswechsel löschen
+    const l = this.lit.getContext('2d');
+    l.setTransform(1, 0, 0, 1, 0, 0);
+    l.clearRect(0, 0, this.lit.width, this.lit.height);
     this.dirty = false;
     this.lastKey = null;
   }
 
-  bgSpec(c, L) {
+  bgSegs(c, L) {
     c.globalAlpha = UNLIT_ALPHA;
     for (let b = 0; b < NB; b++) {
       for (let s = 0; s < SEGS; s++) { c.fillStyle = L.colors[b][s]; c.fillRect(...this.segRect(L, b, s)); }
     }
     c.globalAlpha = 1;
+  }
+
+  bgLabels(c, L) {
     c.font = '20px ' + FONT;
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
@@ -209,14 +264,18 @@ export class Renderer {
   vuAngle(pos) { return -VU_ARC + 2 * VU_ARC * pos; }
   vuPoint(m, a, r) { return [m.px + r * Math.sin(a), m.py - r * Math.cos(a)]; }
 
-  bgMeter(c, m) {
-    const fc = this.theme === 6 ? this.custom : FACES[this.theme], f = m.f;
-    c.save();
+  meterPath(c, m) {
     c.beginPath();
-    c.roundRect ? c.roundRect(m.x, m.y, m.w, m.h, 5) : c.rect(m.x, m.y, m.w, m.h);
+    c.roundRect ? c.roundRect(m.x, m.y, m.w, m.h, 6) : c.rect(m.x, m.y, m.w, m.h);
+  }
+
+  bgMeter(c, m) {
+    const fc = this.skin === SKINS.WOOD ? FACE_WOOD : this.theme === 6 ? this.custom : FACES[this.theme], f = m.f;
+    c.save();
+    this.meterPath(c, m);
     c.clip();
     // hinterleuchtete Skala
-    const g = c.createRadialGradient(m.px, m.y + m.h * 0.8, 5, m.px, m.y + m.h * 0.6, m.w * 0.75);
+    const g = c.createRadialGradient(m.px, m.py - m.R * 0.35, 5, m.px, m.py - m.R * 0.5, Math.max(m.w, m.h) * 0.75);
     g.addColorStop(0, mix(fc, '#ffffff', 0.35));
     g.addColorStop(1, mix(fc, '#2a1a08', 0.5));
     c.fillStyle = g;
@@ -229,7 +288,7 @@ export class Renderer {
     c.strokeStyle = VU_RED;
     c.lineWidth = 5 * f;
     c.beginPath(); c.arc(m.px, m.py, m.R + 3 * f, a0 + 2 * VU_ARC * (1 / VU_FULL), a1); c.stroke();
-    c.font = Math.round(16 * f) + 'px ' + FONT;
+    c.font = Math.round(18 * f) + 'px ' + FONT;
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     for (const db of VU_TICKS) {
@@ -239,28 +298,46 @@ export class Renderer {
       c.lineWidth = (db === 0 ? 2 : 1.2) * f;
       c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
       if (VU_TEXT.includes(db)) {
-        const [lx, ly] = this.vuPoint(m, a, m.R + 19 * f);
+        const [lx, ly] = this.vuPoint(m, a, m.R + 21 * f);
         c.fillStyle = db > 0 ? VU_RED : VU_INK;
         c.fillText(db > 0 ? '+' + db : String(Math.abs(db)), lx, ly);
       }
     }
     // Prozentskala innen, wie bei echten VU-Metern
-    c.font = Math.round(12 * f) + 'px ' + FONT;
+    c.font = Math.round(13 * f) + 'px ' + FONT;
     c.fillStyle = VU_INK;
     c.globalAlpha = 0.7;
     for (const p of [0, 20, 40, 60, 80, 100]) {
-      const [lx, ly] = this.vuPoint(m, this.vuAngle(p / 100 / VU_FULL), m.R - 12 * f);
+      const [lx, ly] = this.vuPoint(m, this.vuAngle(p / 100 / VU_FULL), m.R - 13 * f);
       c.fillText(String(p), lx, ly);
     }
     c.globalAlpha = 1;
-    c.font = Math.round(22 * f) + 'px ' + FONT;
-    c.fillText('VU', m.x + m.w - 22 * f, m.y + m.h - 18 * f);
-    c.fillText(m.name, m.x + 16 * f, m.y + m.h - 18 * f);
+    c.font = Math.round(30 * f) + 'px ' + FONT;
+    c.fillStyle = VU_INK;
+    c.fillText('VU', m.px, m.py - m.R * 0.38);
+    // Kappe über der Zeigerachse
+    c.fillStyle = '#1d1712';
+    c.beginPath();
+    c.arc(m.px, m.py, m.rc, Math.PI, 0);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(255,255,255,0.18)';
+    c.lineWidth = 1;
+    c.stroke();
+    // Kanalbezeichnung unten links (Doppelzeiger: L schwarz, R rot)
+    c.font = Math.round(26 * f) + 'px ' + FONT;
+    c.textAlign = 'left';
+    const bx = m.x + 14 * f, by = m.y + m.h - 18 * f;
+    if (m.name === 'LR') {
+      c.fillStyle = NEEDLE[0]; c.fillText('L', bx, by);
+      c.fillStyle = NEEDLE[1]; c.fillText('R', bx + 18 * f, by);
+    } else {
+      c.fillStyle = VU_INK; c.fillText(m.name, bx, by);
+    }
     c.restore();
     c.strokeStyle = '#000';
     c.lineWidth = 3;
-    c.beginPath();
-    c.roundRect ? c.roundRect(m.x, m.y, m.w, m.h, 5) : c.rect(m.x, m.y, m.w, m.h);
+    this.meterPath(c, m);
     c.stroke();
   }
 
@@ -299,6 +376,57 @@ export class Renderer {
     c.globalAlpha = 1;
   }
 
+  // Raster wie auf einem Oszilloskop-Schirm: 10 x 8 Teilungen
+  bgOsc(c, S) {
+    const col = this.color(Math.round(NB / 2), 0.3), cx = S.x + S.w / 2, cy = S.y + S.h / 2;
+    c.strokeStyle = col;
+    c.lineWidth = 1;
+    c.globalAlpha = 0.13;
+    c.beginPath();
+    for (let i = 0; i <= 10; i++) { const x = S.x + i * S.w / 10; c.moveTo(x, S.y); c.lineTo(x, S.y + S.h); }
+    for (let i = 0; i <= 8; i++) { const y = S.y + i * S.h / 8; c.moveTo(S.x, y); c.lineTo(S.x + S.w, y); }
+    c.stroke();
+    // Feinteilung auf den Mittelachsen
+    c.globalAlpha = 0.3;
+    c.beginPath();
+    c.moveTo(S.x, cy); c.lineTo(S.x + S.w, cy); c.moveTo(cx, S.y); c.lineTo(cx, S.y + S.h);
+    for (let i = 0; i <= 50; i++) { const x = S.x + i * S.w / 50; c.moveTo(x, cy - 4); c.lineTo(x, cy + 4); }
+    for (let i = 0; i <= 40; i++) { const y = S.y + i * S.h / 40; c.moveTo(cx - 4, y); c.lineTo(cx + 4, y); }
+    c.stroke();
+    c.globalAlpha = 1;
+  }
+
+  // Goniometer: Kreis, Achsen M (Mono), S (Seite), L und R unter 45°
+  bgGonio(c, S) {
+    const col = this.color(Math.round(NB / 2), 0.3), cx = S.x + S.w / 2, cy = S.y + S.h / 2, r = S.w / 2;
+    const d = r * Math.SQRT1_2;
+    c.strokeStyle = col;
+    c.lineWidth = 1;
+    c.globalAlpha = 0.14;
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.moveTo(cx + r * 0.5, cy); c.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
+    c.stroke();
+    c.globalAlpha = 0.28;
+    c.beginPath();
+    c.moveTo(cx, cy - r); c.lineTo(cx, cy + r);
+    c.moveTo(cx - r, cy); c.lineTo(cx + r, cy);
+    c.moveTo(cx - d, cy - d); c.lineTo(cx + d, cy + d);
+    c.moveTo(cx + d, cy - d); c.lineTo(cx - d, cy + d);
+    c.stroke();
+    c.globalAlpha = 1;
+    c.fillStyle = LABEL_COLOR;
+    c.font = '24px ' + FONT;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    const t = r + 4;
+    c.fillText('M', cx, cy - r + 14);
+    c.fillText('L', cx - d * 1.04 - 8, cy - d * 1.04 - 8);
+    c.fillText('R', cx + d * 1.04 + 8, cy - d * 1.04 - 8);
+    c.fillText('+S', cx - t - 16, cy);
+    c.fillText('-S', cx + t + 16, cy);
+  }
+
   // 7-Segment-Ziffer, Segmente als Sechsecke
   digit(c, r, segs) {
     const t = r.w * 0.19, g = t * 0.16;
@@ -334,7 +462,7 @@ export class Renderer {
 
   // ---------- pro Frame ----------
 
-  // d: { lv, pk, vu: [posL, posR], led: [l, r], ledPk: [l, r], now: Date }, lv = null wenn kein Eingang
+  // d: { lv, pk, vu: [posL, posR], led, ledPk, wl, wr, amp, dt, now }, lv = null wenn kein Eingang
   draw(d) {
     if (this.dirty) this.buildBg();
     const M = MODES;
@@ -347,16 +475,40 @@ export class Renderer {
     }
     const c = this.lit.getContext('2d');
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    c.clearRect(0, 0, this.W, this.H);
     let lit = false;
-    if (this.spec && d.lv) { this.litSpec(c, this.spec, d.lv, d.pk); lit = true; }
-    if (this.mode === M.LED && d.lv) { this.litLed(c, this.led, d.led, d.ledPk); lit = true; }
-    if (this.mode === M.CLOCK) { this.litClock(c, this.clk, this.lastKey); lit = true; }
+    if (this.scope) {
+      // Nachleuchten: alte Spur langsam ausblenden statt löschen
+      const tau = this.mode === M.OSC ? PERSIST_OSC : PERSIST_GONIO;
+      c.globalCompositeOperation = 'destination-out';
+      c.fillStyle = 'rgba(0,0,0,' + (1 - Math.exp(-d.dt / tau)).toFixed(4) + ')';
+      c.fillRect(0, 0, this.W, this.H);
+      c.globalCompositeOperation = 'source-over';
+      if (d.lv) {
+        if (this.mode === M.OSC) this.litOsc(c, this.scope, d);
+        else this.litGonio(c, this.scope, d);
+      }
+      lit = true;
+    } else {
+      c.clearRect(0, 0, this.W, this.H);
+      if (this.mode === M.FALL) {
+        if (d.lv) this.feedFall(d.lv, d.dt);
+      } else if (this.spec && d.lv) { this.litSpec(c, this.spec, d.lv, d.pk); lit = true; }
+      if (this.mode === M.LED && d.lv) { this.litLed(c, this.led, d.led, d.ledPk); lit = true; }
+      if (this.mode === M.CLOCK) { this.litClock(c, this.clk, this.lastKey); lit = true; }
+    }
     this.compose(lit);
+    const m = this.ctx;
+    m.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (this.mode === M.FALL) this.drawFall(m, this.spec);
     if (this.meters) {
-      const m = this.ctx;
-      m.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-      this.meters.forEach((mt, i) => this.needle(m, mt, d.lv ? d.vu[i] : 0));
+      const mt = this.meters;
+      if (mt.length === 1) {
+        // Doppelzeiger: R unter L
+        this.needle(m, mt[0], d.lv ? d.vu[1] : 0, NEEDLE[1]);
+        this.needle(m, mt[0], d.lv ? d.vu[0] : 0, NEEDLE[0]);
+      } else {
+        mt.forEach((x, i) => this.needle(m, x, d.lv ? d.vu[i] : 0, NEEDLE[0]));
+      }
     }
   }
 
@@ -397,21 +549,93 @@ export class Renderer {
     if (key[6] === ':') { c.fillStyle = K.colors[1]; this.colon(c, K.colon); }
   }
 
-  needle(m, mt, pos) {
+  // Wellenform (L+R)/2, getriggert auf steigenden Nulldurchgang
+  litOsc(c, S, d) {
+    const l = d.wl, r = d.wr, n = l.length, win = Math.min(OSC_WINDOW, n >> 1);
+    const hyst = 0.02 / d.amp;
+    let start = 0;
+    for (let i = 1, armed = false; i < n - win; i++) {
+      const v = l[i] + r[i];
+      if (v < -hyst) armed = true;
+      else if (armed && v >= 0 && l[i - 1] + r[i - 1] < 0) { start = i; break; }
+    }
+    const cy = S.y + S.h / 2, half = S.h / 2, k = d.amp * half * 0.5, dx = S.w / (win - 1);
+    c.save();
+    c.beginPath(); c.rect(S.x, S.y, S.w, S.h); c.clip();
+    c.strokeStyle = S.stroke;
+    c.lineWidth = 2.2;
+    c.lineJoin = 'round';
+    c.beginPath();
+    for (let i = 0; i < win; i++) {
+      const v = (l[start + i] + r[start + i]) * k;
+      const x = S.x + i * dx, y = cy - Math.max(-half, Math.min(half, v));
+      if (i) c.lineTo(x, y); else c.moveTo(x, y);
+    }
+    c.stroke();
+    c.restore();
+  }
+
+  // L/R als XY, um 45° gedreht: Mono senkrecht, L oben links, R oben rechts
+  litGonio(c, S, d) {
+    const l = d.wl, r = d.wr, n = l.length, cx = S.x + S.w / 2, cy = S.y + S.h / 2, rad = S.w / 2;
+    const k = d.amp * rad * 0.5 * Math.SQRT1_2;
+    c.save();
+    c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI * 2); c.clip();
+    c.strokeStyle = S.stroke;
+    c.lineWidth = 1.3;
+    c.globalAlpha = 0.55;
+    c.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = cx + (r[i] - l[i]) * k, y = cy - (l[i] + r[i]) * k;
+      if (i) c.lineTo(x, y); else c.moveTo(x, y);
+    }
+    c.stroke();
+    c.restore();
+  }
+
+  // Wasserfall: neue Zeilen oben einfügen (Ringpuffer)
+  feedFall(lv, dt) {
+    this.fallAcc += dt * FALL_RATE;
+    if (this.fallAcc < 1) return;
+    const f = this.fall.getContext('2d');
+    while (this.fallAcc >= 1) {
+      this.fallAcc -= 1;
+      this.fallHead = (this.fallHead + FALL_ROWS - 1) % FALL_ROWS;
+      f.clearRect(0, this.fallHead, NB, 1);
+      for (let b = 0; b < NB; b++) {
+        const v = lv[b];
+        if (v <= 0.02) continue;
+        f.globalAlpha = Math.min(1, Math.pow(v * 1.1, 1.4));
+        f.fillStyle = this.color(b, v);
+        f.fillRect(b, this.fallHead, 1, 1);
+      }
+    }
+    f.globalAlpha = 1;
+  }
+
+  drawFall(m, L) {
+    const x = L.x, y = L.y, w = NB * L.cw, h = L.gh, rowH = h / FALL_ROWS, head = this.fallHead;
+    const top = FALL_ROWS - head;
+    m.imageSmoothingEnabled = true;
+    m.drawImage(this.fall, 0, head, NB, top, x, y, w, top * rowH);
+    if (head > 0) m.drawImage(this.fall, 0, 0, NB, head, x, y + top * rowH, w, head * rowH);
+  }
+
+  needle(m, mt, pos, color) {
     const a = this.vuAngle(Math.max(-0.02, Math.min(1.06, pos)));
     const [nx, ny] = this.vuPoint(mt, a, mt.R + 12 * mt.f);
+    const [bx, by] = this.vuPoint(mt, a, mt.rc);
     m.save();
-    m.beginPath();
-    m.rect(mt.x + 1.5, mt.y + 1.5, mt.w - 3, mt.h - 3);
+    this.meterPath(m, mt);
     m.clip();
     m.lineCap = 'round';
     // Schatten des Zeigers auf der Skala
     m.strokeStyle = 'rgba(0,0,0,0.22)';
     m.lineWidth = 2.4 * mt.f;
-    m.beginPath(); m.moveTo(mt.px + 4 * mt.f, mt.py + 3 * mt.f); m.lineTo(nx + 4 * mt.f, ny + 3 * mt.f); m.stroke();
-    m.strokeStyle = '#151515';
+    m.beginPath(); m.moveTo(bx + 4 * mt.f, by + 3 * mt.f); m.lineTo(nx + 4 * mt.f, ny + 3 * mt.f); m.stroke();
+    m.strokeStyle = color;
     m.lineWidth = 1.8 * mt.f;
-    m.beginPath(); m.moveTo(mt.px, mt.py); m.lineTo(nx, ny); m.stroke();
+    m.beginPath(); m.moveTo(bx, by); m.lineTo(nx, ny); m.stroke();
     m.restore();
   }
 

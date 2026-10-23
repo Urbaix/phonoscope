@@ -4,13 +4,24 @@ Retro-Audio-Visualizer als Web-App (PWA) für das iPad. 31 Terzbänder, Peak-Hol
 
 ## Modi
 
-1. **BALKEN:** 31 Terzbänder mit Peak-Hold
-2. **WELLE:** symmetrisch von der Mitte nach oben und unten
-3. **PUNKTE:** nur Spitze und gehaltener Peak je Band
-4. **VU ANALOG:** zwei Zeigerinstrumente L/R, Skala -20 bis +3 VU, Zeigerträgheit nach VU-Norm (99 % nach ca. 300 ms)
-5. **VU LED:** zwei horizontale Segmentbalken L/R mit Peak-Hold
-6. **UHR:** 7-Segment-Ziffern mit Sekunden
-7. **KOMBI:** VU analog links, Spektrum rechts
+- **BALKEN:** 31 Terzbänder mit Peak-Hold
+- **WELLE:** symmetrisch von der Mitte nach oben und unten
+- **PUNKTE:** nur Spitze und gehaltener Peak je Band
+- **WASSERFALL:** Spektrum läuft als Farbverlauf von oben nach unten durch (ca. 6 Sekunden sichtbar)
+- **OSZILLOSKOP:** Wellenform (L+R) als Leuchtspur mit Nachleuchten, getriggert
+- **GONIOMETER:** L/R als XY-Darstellung, um 45° gedreht (Mono = senkrechte Linie), mit Nachleuchten
+- **VU ANALOG:** zwei Zeigerinstrumente L/R, Skala -20 bis +3 VU, Zeigerträgheit nach VU-Norm (99 % nach ca. 300 ms)
+- **VU LED:** zwei horizontale Segmentbalken L/R mit Peak-Hold
+- **KOMBI:** ein VU-Instrument mit Doppelzeiger (L schwarz, R rot) links, Spektrum rechts
+- **UHR:** 7-Segment-Ziffern mit Sekunden
+
+## Skins
+
+- **90ER PC:** dunkelgraues Gehäuse mit Fase, grünes LCD (Standard)
+- **TECHNICS SILBER:** gebürstetes Alu, schwarze Displayfläche, Receiver-Tasten mit Kontrollleuchte (eigenes Design, kein Markenlogo)
+- **HOLZ 70ER:** Walnuss-Seitenteile, Bernstein-Beleuchtung, VU-Skalen bernsteinfarben. Beim Wechsel auf diesen Skin wird die Farbe auf Bernstein gestellt, falls noch Türkis gewählt war.
+
+Die App ist für das Querformat gestaltet.
 
 ## 1. GitHub Pages einschalten (einmalig, vom iPad oder iPhone)
 
@@ -53,7 +64,8 @@ Jeder weitere Merge nach `main` veröffentlicht automatisch neu.
 
 - Tippen holt das Bedienfeld zurück, nach 5 Sekunden blendet es aus. `_` in der Titelleiste blendet es sofort aus.
 - Wischen nach links: nächster Modus, nach rechts: vorheriger Modus.
-- **EINST.:** Empfindlichkeit (±20 dB, gilt für Spektrum und VU), Helligkeit, Glätte (Abfallzeit der Balken), Eingang, Nachtmodus.
+- **EINST.:** Skin, Auto-Pegel, Empfindlichkeit, Helligkeit, Glätte (Abfallzeit der Balken), Eingang, Nachtmodus.
+- **Auto-Pegel** (Standard: ein): passt die Anzeige gleitend an die Lautstärke der letzten Sekunden an, für alle Modi. Rechts daneben steht die aktuelle Anhebung. Die **Empfindlichkeit** (±40 dB) wirkt zusätzlich, bei ausgeschaltetem Auto-Pegel allein.
 - Alle Einstellungen bleiben auf dem Gerät gespeichert.
 
 ## Updates
@@ -64,7 +76,7 @@ Die App startet aus dem Offline-Speicher und lädt Neuerungen im Hintergrund. Na
 
 - Reines HTML/CSS/JS, keine Abhängigkeiten. Web Audio API (`AnalyserNode`, FFT 8192) und Canvas.
 - Terzbänder: Leistung der FFT-Bins je Band (ISO-Mitten 20 Hz bis 20 kHz) aufsummiert. Unter ca. 40 Hz ist die Auflösung grob, benachbarte Bänder ähneln sich dort.
-- VU-Bezug: 0 VU entspricht -20 dBFS RMS bei Empfindlichkeit 0. Liefert der Eingang nur Mono, zeigen L und R dasselbe.
+- VU-Bezug: 0 VU entspricht -20 dBFS RMS bei Empfindlichkeit 0 ohne Auto-Pegel. Der Auto-Pegel zielt auf -23 dBFS RMS (Nadel um -3 VU), regelt in 1,5 s herunter und in 5 s herauf, bei Stille (unter -80 dBFS) gar nicht. Liefert der Eingang nur Mono, zeigen L und R dasselbe.
 - Schrift VT323 (SIL Open Font License, `fonts/OFL.txt`), lokal eingebunden.
 - Icons neu erzeugen: `python3 tools/make_icons.py` (braucht Pillow).
 - Lokal testen: `python3 -m http.server` im Repo, dann `http://localhost:8000`.
