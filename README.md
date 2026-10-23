@@ -2,7 +2,15 @@
 
 Retro-Audio-Visualizer als Web-App (PWA) für das iPad. 31 Terzbänder, Peak-Hold, Look eines PC-Musikplayers der späten 90er.
 
-Stand v1: Modus BALKEN, alle Farbthemen, Einstellungen, offline nutzbar. Die übrigen Modi folgen.
+## Modi
+
+1. **BALKEN:** 31 Terzbänder mit Peak-Hold
+2. **WELLE:** symmetrisch von der Mitte nach oben und unten
+3. **PUNKTE:** nur Spitze und gehaltener Peak je Band
+4. **VU ANALOG:** zwei Zeigerinstrumente L/R, Skala -20 bis +3 VU, Zeigerträgheit nach VU-Norm (99 % nach ca. 300 ms)
+5. **VU LED:** zwei horizontale Segmentbalken L/R mit Peak-Hold
+6. **UHR:** 7-Segment-Ziffern mit Sekunden
+7. **KOMBI:** VU analog links, Spektrum rechts
 
 ## 1. GitHub Pages einschalten (einmalig, vom iPad oder iPhone)
 
@@ -44,7 +52,8 @@ Jeder weitere Merge nach `main` veröffentlicht automatisch neu.
 ## Bedienung
 
 - Tippen holt das Bedienfeld zurück, nach 5 Sekunden blendet es aus. `_` in der Titelleiste blendet es sofort aus.
-- **EINST.:** Empfindlichkeit (±20 dB), Helligkeit, Glätte (Abfallzeit der Balken), Eingang, Nachtmodus.
+- Wischen nach links: nächster Modus, nach rechts: vorheriger Modus.
+- **EINST.:** Empfindlichkeit (±20 dB, gilt für Spektrum und VU), Helligkeit, Glätte (Abfallzeit der Balken), Eingang, Nachtmodus.
 - Alle Einstellungen bleiben auf dem Gerät gespeichert.
 
 ## Updates
@@ -55,6 +64,7 @@ Die App startet aus dem Offline-Speicher und lädt Neuerungen im Hintergrund. Na
 
 - Reines HTML/CSS/JS, keine Abhängigkeiten. Web Audio API (`AnalyserNode`, FFT 8192) und Canvas.
 - Terzbänder: Leistung der FFT-Bins je Band (ISO-Mitten 20 Hz bis 20 kHz) aufsummiert. Unter ca. 40 Hz ist die Auflösung grob, benachbarte Bänder ähneln sich dort.
+- VU-Bezug: 0 VU entspricht -20 dBFS RMS bei Empfindlichkeit 0. Liefert der Eingang nur Mono, zeigen L und R dasselbe.
 - Schrift VT323 (SIL Open Font License, `fonts/OFL.txt`), lokal eingebunden.
 - Icons neu erzeugen: `python3 tools/make_icons.py` (braucht Pillow).
 - Lokal testen: `python3 -m http.server` im Repo, dann `http://localhost:8000`.
